@@ -14,7 +14,7 @@ var rbtv = function(endpoint, callback) {
 	var user    = '';
 	var salt    = '';
 	var id      = '00000000-0000-0000-0000-000000000000';
-	var created = moment().format("YYYY-MM-DDTHH:mm:ss") + '+0200'.trim();
+	var created = moment().format("YYYY-MM-DDTHH:mm:ssZZ").trim();
 	var nonce   = id + created + rand(10).trim();
 	var sha1    = sha1h(nonce + created + salt);
 

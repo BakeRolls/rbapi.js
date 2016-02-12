@@ -1,44 +1,50 @@
-var http   = require('http');
-var moment = require('moment');
-var sha1h  = require('sha1-hex');
+'use strict'
 
-var rand = function(num) {
-	return Math.random().toString(36).slice(num);
-};
+var http = require('http')
+var moment = require('moment')
+var sha1 = require('sha1')
 
-var base64encode = function(str) {
-	return new Buffer(str).toString('base64')
-};
+class RocketBeans {
+	constructor(key, secret, id) {
+		this.key = key
+		this.secret = secret
+		this.id = id || '00000000-0000-0000-0000-000000000000'
+		this.host = 'api.rocketmgmt.de'
 
-var rbtv = function(endpoint, callback) {
-	var user    = '';
-	var salt    = '';
-	var id      = '00000000-0000-0000-0000-000000000000';
-	var created = moment().format("YYYY-MM-DDTHH:mm:ssZZ").trim();
-	var nonce   = id + created + rand(10).trim();
-	var sha1    = sha1h(nonce + created + salt);
+		return this
+	}
 
-	http.request({
-	  host: 'api.rocketmgmt.de',
-	  path: '/' + endpoint,
-	  headers: {
-			'Accept': 'application/json',
-			'Authorization': 'WSSE profile="UsernameToken"',
-			'X-WSSE': 'UsernameToken Username="' + user + '", PasswordDigest="' + base64encode(sha1) + '", Nonce="' + base64encode(nonce) + '", Created="' + created + '"'
-		}
-	}, function(response) {
-	  var json = ''
+	rand(num) {
+		return Math.random().toString(36).slice(num)
+	}
 
-	  response.on('data', function (chunk) {
-	    json += chunk;
-	  });
+	base64encode(str) {
+		return new Buffer(str).toString('base64')
+	}
 
-	  response.on('end', function () {
-	    callback(json);
-	  });
-	}).end();
-};
+	get(endpoint) {
+		let created = moment().format("YYYY-MM-DDTHH:mm:ssZZ")
+		let nonce = `${this.id}${created}${this.rand(10)}`
+		let sha = sha1(`${nonce}${created}${this.secret}`)
 
-rbtv('podcast', function(json) {
-	console.log(json);
-});
+		return new Promise((resolve, reject) => {
+			http.request({
+				host: this.host,
+				path: `/${endpoint}`,
+				headers: {
+					'Accept': 'application/json',
+					'Authorization': 'WSSE profile="UsernameToken"',
+					'X-WSSE': `UsernameToken Username="${this.key}", PasswordDigest="${this.base64encode(sha)}", Nonce="${this.base64encode(nonce)}", Created="${created}"`
+				}
+			}, (response) => {
+				let json = ''
+
+				response.on('data', (chunk) => json += chunk)
+				response.on('end', () => resolve(JSON.parse(json)))
+				response.on('error', (error) => reject(error))
+			}).end()
+		})
+	}
+}
+
+module.exports = RocketBeans
